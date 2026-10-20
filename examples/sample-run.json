@@ -1,0 +1,284 @@
+{
+  "mode": "deterministic",
+  "pendingBeforeApproval": {
+    "id": "sample-relay-ops-agent:5:apply_rollback",
+    "tool": "apply_rollback",
+    "args": {
+      "service": "transcript-api",
+      "expectedCurrent": "v12",
+      "targetVersion": "v11",
+      "runbookId": "rb-pool"
+    }
+  },
+  "state": {
+    "version": 1,
+    "runId": "sample-relay-ops-agent",
+    "goal": "Investigate the elevated error rate in transcript-api and propose the least disruptive recovery.",
+    "status": "complete",
+    "steps": 7,
+    "toolCalls": 6,
+    "tokens": 0,
+    "observations": [
+      {
+        "tool": "get_metrics",
+        "args": {
+          "service": "transcript-api"
+        },
+        "ok": true,
+        "result": {
+          "service": "transcript-api",
+          "errorRate": 0.19,
+          "latencyMs": 4200,
+          "healthy": false
+        }
+      },
+      {
+        "tool": "search_logs",
+        "args": {
+          "service": "transcript-api",
+          "query": "pool"
+        },
+        "ok": true,
+        "result": [
+          {
+            "id": "log-2",
+            "message": "Database pool exhausted: 64 concurrent workers"
+          }
+        ]
+      },
+      {
+        "tool": "list_deployments",
+        "args": {
+          "service": "transcript-api"
+        },
+        "ok": true,
+        "result": {
+          "current": "v12",
+          "previous": "v11"
+        }
+      },
+      {
+        "tool": "read_runbook",
+        "args": {
+          "id": "rb-pool"
+        },
+        "ok": true,
+        "result": {
+          "id": "rb-pool",
+          "title": "Connection pool exhaustion",
+          "action": "rollback",
+          "reason": "v12 increased worker concurrency beyond the connection pool limit."
+        }
+      },
+      {
+        "tool": "apply_rollback",
+        "args": {
+          "service": "transcript-api",
+          "expectedCurrent": "v12",
+          "targetVersion": "v11",
+          "runbookId": "rb-pool"
+        },
+        "ok": true,
+        "result": {
+          "applied": true,
+          "version": "v11",
+          "simulated": true
+        }
+      },
+      {
+        "tool": "get_metrics",
+        "args": {
+          "service": "transcript-api"
+        },
+        "ok": true,
+        "result": {
+          "service": "transcript-api",
+          "errorRate": 0.002,
+          "latencyMs": 180,
+          "healthy": true
+        }
+      }
+    ],
+    "trace": [
+      {
+        "index": 0,
+        "event": "tool_requested",
+        "name": "get_metrics",
+        "args": {
+          "service": "transcript-api"
+        }
+      },
+      {
+        "index": 1,
+        "event": "tool_result",
+        "name": "get_metrics",
+        "args": {
+          "service": "transcript-api"
+        },
+        "result": {
+          "service": "transcript-api",
+          "errorRate": 0.19,
+          "latencyMs": 4200,
+          "healthy": false
+        },
+        "reviewer": null
+      },
+      {
+        "index": 2,
+        "event": "tool_requested",
+        "name": "search_logs",
+        "args": {
+          "service": "transcript-api",
+          "query": "pool"
+        }
+      },
+      {
+        "index": 3,
+        "event": "tool_result",
+        "name": "search_logs",
+        "args": {
+          "service": "transcript-api",
+          "query": "pool"
+        },
+        "result": [
+          {
+            "id": "log-2",
+            "message": "Database pool exhausted: 64 concurrent workers"
+          }
+        ],
+        "reviewer": null
+      },
+      {
+        "index": 4,
+        "event": "tool_requested",
+        "name": "list_deployments",
+        "args": {
+          "service": "transcript-api"
+        }
+      },
+      {
+        "index": 5,
+        "event": "tool_result",
+        "name": "list_deployments",
+        "args": {
+          "service": "transcript-api"
+        },
+        "result": {
+          "current": "v12",
+          "previous": "v11"
+        },
+        "reviewer": null
+      },
+      {
+        "index": 6,
+        "event": "tool_requested",
+        "name": "read_runbook",
+        "args": {
+          "id": "rb-pool"
+        }
+      },
+      {
+        "index": 7,
+        "event": "tool_result",
+        "name": "read_runbook",
+        "args": {
+          "id": "rb-pool"
+        },
+        "result": {
+          "id": "rb-pool",
+          "title": "Connection pool exhaustion",
+          "action": "rollback",
+          "reason": "v12 increased worker concurrency beyond the connection pool limit."
+        },
+        "reviewer": null
+      },
+      {
+        "index": 8,
+        "event": "tool_requested",
+        "name": "apply_rollback",
+        "args": {
+          "service": "transcript-api",
+          "expectedCurrent": "v12",
+          "targetVersion": "v11",
+          "runbookId": "rb-pool"
+        }
+      },
+      {
+        "index": 9,
+        "event": "approval_required",
+        "id": "sample-relay-ops-agent:5:apply_rollback",
+        "tool": "apply_rollback",
+        "args": {
+          "service": "transcript-api",
+          "expectedCurrent": "v12",
+          "targetVersion": "v11",
+          "runbookId": "rb-pool"
+        }
+      },
+      {
+        "index": 10,
+        "event": "tool_result",
+        "name": "apply_rollback",
+        "args": {
+          "service": "transcript-api",
+          "expectedCurrent": "v12",
+          "targetVersion": "v11",
+          "runbookId": "rb-pool"
+        },
+        "result": {
+          "applied": true,
+          "version": "v11",
+          "simulated": true
+        },
+        "reviewer": "sample-reviewer"
+      },
+      {
+        "index": 11,
+        "event": "tool_requested",
+        "name": "get_metrics",
+        "args": {
+          "service": "transcript-api"
+        }
+      },
+      {
+        "index": 12,
+        "event": "tool_result",
+        "name": "get_metrics",
+        "args": {
+          "service": "transcript-api"
+        },
+        "result": {
+          "service": "transcript-api",
+          "errorRate": 0.002,
+          "latencyMs": 180,
+          "healthy": true
+        },
+        "reviewer": null
+      },
+      {
+        "index": 13,
+        "event": "completed"
+      }
+    ],
+    "receipts": {
+      "{\"args\":{\"expectedCurrent\":\"v12\",\"runbookId\":\"rb-pool\",\"service\":\"transcript-api\",\"targetVersion\":\"v11\"},\"name\":\"apply_rollback\"}": {
+        "applied": true,
+        "version": "v11",
+        "simulated": true
+      }
+    },
+    "pending": null,
+    "answer": "Recovered transcript-api to v11. Verified error rate: 0.002. Synthetic rollback only."
+  },
+  "result": {
+    "version": "v11",
+    "changes": [
+      {
+        "service": "transcript-api",
+        "from": "v12",
+        "to": "v11",
+        "reason": "v12 increased worker concurrency beyond the connection pool limit."
+      }
+    ]
+  }
+}
