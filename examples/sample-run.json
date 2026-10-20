@@ -1,73 +1,180 @@
 {
   "mode": "deterministic",
-  "pendingBeforeApproval": {
-    "id": "sample-relay-ops-agent:5:apply_rollback",
-    "tool": "apply_rollback",
-    "args": {
-      "service": "transcript-api",
-      "expectedCurrent": "v12",
-      "targetVersion": "v11",
-      "runbookId": "rb-pool"
-    }
-  },
   "state": {
     "version": 1,
-    "runId": "sample-relay-ops-agent",
-    "goal": "Investigate the elevated error rate in transcript-api and propose the least disruptive recovery.",
+    "runId": "orchestrator-sample",
+    "goal": "Orchestrate diagnosis, recovery planning, human review, and verification for transcript-api.",
     "status": "complete",
-    "steps": 7,
-    "toolCalls": 6,
+    "steps": 5,
+    "toolCalls": 4,
     "tokens": 0,
     "observations": [
       {
-        "tool": "get_metrics",
+        "tool": "delegate_triage",
         "args": {
           "service": "transcript-api"
         },
         "ok": true,
         "result": {
-          "service": "transcript-api",
-          "errorRate": 0.19,
-          "latencyMs": 4200,
-          "healthy": false
+          "from": "orchestrator",
+          "to": "diagnosis",
+          "handoffId": "handoff-diagnosis",
+          "status": "complete",
+          "capabilities": [
+            "get_metrics",
+            "search_logs"
+          ],
+          "findings": {
+            "metrics": {
+              "service": "transcript-api",
+              "errorRate": 0.19,
+              "latencyMs": 4200,
+              "healthy": false
+            },
+            "logs": [
+              {
+                "id": "log-2",
+                "message": "Database pool exhausted: 64 concurrent workers"
+              }
+            ],
+            "incidentType": "connection_pool"
+          },
+          "steps": 3,
+          "toolCalls": 2,
+          "tokens": 0,
+          "trace": [
+            {
+              "index": 0,
+              "event": "tool_requested",
+              "name": "get_metrics",
+              "args": {
+                "service": "transcript-api"
+              }
+            },
+            {
+              "index": 1,
+              "event": "tool_result",
+              "name": "get_metrics",
+              "args": {
+                "service": "transcript-api"
+              },
+              "result": {
+                "service": "transcript-api",
+                "errorRate": 0.19,
+                "latencyMs": 4200,
+                "healthy": false
+              },
+              "reviewer": null
+            },
+            {
+              "index": 2,
+              "event": "tool_requested",
+              "name": "search_logs",
+              "args": {
+                "service": "transcript-api",
+                "query": "pool"
+              }
+            },
+            {
+              "index": 3,
+              "event": "tool_result",
+              "name": "search_logs",
+              "args": {
+                "service": "transcript-api",
+                "query": "pool"
+              },
+              "result": [
+                {
+                  "id": "log-2",
+                  "message": "Database pool exhausted: 64 concurrent workers"
+                }
+              ],
+              "reviewer": null
+            },
+            {
+              "index": 4,
+              "event": "completed"
+            }
+          ]
         }
       },
       {
-        "tool": "search_logs",
-        "args": {
-          "service": "transcript-api",
-          "query": "pool"
-        },
-        "ok": true,
-        "result": [
-          {
-            "id": "log-2",
-            "message": "Database pool exhausted: 64 concurrent workers"
-          }
-        ]
-      },
-      {
-        "tool": "list_deployments",
+        "tool": "delegate_recovery_planning",
         "args": {
           "service": "transcript-api"
         },
         "ok": true,
         "result": {
-          "current": "v12",
-          "previous": "v11"
-        }
-      },
-      {
-        "tool": "read_runbook",
-        "args": {
-          "id": "rb-pool"
-        },
-        "ok": true,
-        "result": {
-          "id": "rb-pool",
-          "title": "Connection pool exhaustion",
-          "action": "rollback",
-          "reason": "v12 increased worker concurrency beyond the connection pool limit."
+          "from": "orchestrator",
+          "to": "recovery_planner",
+          "handoffId": "handoff-recovery_planner",
+          "status": "complete",
+          "capabilities": [
+            "list_deployments",
+            "read_runbook"
+          ],
+          "findings": {
+            "rollback": {
+              "service": "transcript-api",
+              "expectedCurrent": "v12",
+              "targetVersion": "v11",
+              "runbookId": "rb-pool"
+            },
+            "reason": "v12 increased worker concurrency beyond the connection pool limit."
+          },
+          "steps": 3,
+          "toolCalls": 2,
+          "tokens": 0,
+          "trace": [
+            {
+              "index": 0,
+              "event": "tool_requested",
+              "name": "list_deployments",
+              "args": {
+                "service": "transcript-api"
+              }
+            },
+            {
+              "index": 1,
+              "event": "tool_result",
+              "name": "list_deployments",
+              "args": {
+                "service": "transcript-api"
+              },
+              "result": {
+                "current": "v12",
+                "previous": "v11"
+              },
+              "reviewer": null
+            },
+            {
+              "index": 2,
+              "event": "tool_requested",
+              "name": "read_runbook",
+              "args": {
+                "id": "rb-pool"
+              }
+            },
+            {
+              "index": 3,
+              "event": "tool_result",
+              "name": "read_runbook",
+              "args": {
+                "id": "rb-pool"
+              },
+              "result": {
+                "id": "rb-pool",
+                "title": "Connection pool exhaustion",
+                "action": "rollback",
+                "reason": "v12 increased worker concurrency beyond the connection pool limit."
+              },
+              "reviewer": null
+            },
+            {
+              "index": 4,
+              "event": "completed"
+            }
+          ]
         }
       },
       {
@@ -86,16 +193,60 @@
         }
       },
       {
-        "tool": "get_metrics",
+        "tool": "delegate_verification",
         "args": {
           "service": "transcript-api"
         },
         "ok": true,
         "result": {
-          "service": "transcript-api",
-          "errorRate": 0.002,
-          "latencyMs": 180,
-          "healthy": true
+          "from": "orchestrator",
+          "to": "verifier",
+          "handoffId": "handoff-verifier",
+          "status": "complete",
+          "capabilities": [
+            "get_metrics"
+          ],
+          "findings": {
+            "metrics": {
+              "service": "transcript-api",
+              "errorRate": 0.002,
+              "latencyMs": 180,
+              "healthy": true
+            },
+            "healthy": true
+          },
+          "steps": 2,
+          "toolCalls": 1,
+          "tokens": 0,
+          "trace": [
+            {
+              "index": 0,
+              "event": "tool_requested",
+              "name": "get_metrics",
+              "args": {
+                "service": "transcript-api"
+              }
+            },
+            {
+              "index": 1,
+              "event": "tool_result",
+              "name": "get_metrics",
+              "args": {
+                "service": "transcript-api"
+              },
+              "result": {
+                "service": "transcript-api",
+                "errorRate": 0.002,
+                "latencyMs": 180,
+                "healthy": true
+              },
+              "reviewer": null
+            },
+            {
+              "index": 2,
+              "event": "completed"
+            }
+          ]
         }
       }
     ],
@@ -103,7 +254,7 @@
       {
         "index": 0,
         "event": "tool_requested",
-        "name": "get_metrics",
+        "name": "delegate_triage",
         "args": {
           "service": "transcript-api"
         }
@@ -111,89 +262,185 @@
       {
         "index": 1,
         "event": "tool_result",
-        "name": "get_metrics",
+        "name": "delegate_triage",
         "args": {
           "service": "transcript-api"
         },
         "result": {
-          "service": "transcript-api",
-          "errorRate": 0.19,
-          "latencyMs": 4200,
-          "healthy": false
+          "from": "orchestrator",
+          "to": "diagnosis",
+          "handoffId": "handoff-diagnosis",
+          "status": "complete",
+          "capabilities": [
+            "get_metrics",
+            "search_logs"
+          ],
+          "findings": {
+            "metrics": {
+              "service": "transcript-api",
+              "errorRate": 0.19,
+              "latencyMs": 4200,
+              "healthy": false
+            },
+            "logs": [
+              {
+                "id": "log-2",
+                "message": "Database pool exhausted: 64 concurrent workers"
+              }
+            ],
+            "incidentType": "connection_pool"
+          },
+          "steps": 3,
+          "toolCalls": 2,
+          "tokens": 0,
+          "trace": [
+            {
+              "index": 0,
+              "event": "tool_requested",
+              "name": "get_metrics",
+              "args": {
+                "service": "transcript-api"
+              }
+            },
+            {
+              "index": 1,
+              "event": "tool_result",
+              "name": "get_metrics",
+              "args": {
+                "service": "transcript-api"
+              },
+              "result": {
+                "service": "transcript-api",
+                "errorRate": 0.19,
+                "latencyMs": 4200,
+                "healthy": false
+              },
+              "reviewer": null
+            },
+            {
+              "index": 2,
+              "event": "tool_requested",
+              "name": "search_logs",
+              "args": {
+                "service": "transcript-api",
+                "query": "pool"
+              }
+            },
+            {
+              "index": 3,
+              "event": "tool_result",
+              "name": "search_logs",
+              "args": {
+                "service": "transcript-api",
+                "query": "pool"
+              },
+              "result": [
+                {
+                  "id": "log-2",
+                  "message": "Database pool exhausted: 64 concurrent workers"
+                }
+              ],
+              "reviewer": null
+            },
+            {
+              "index": 4,
+              "event": "completed"
+            }
+          ]
         },
         "reviewer": null
       },
       {
         "index": 2,
         "event": "tool_requested",
-        "name": "search_logs",
+        "name": "delegate_recovery_planning",
         "args": {
-          "service": "transcript-api",
-          "query": "pool"
+          "service": "transcript-api"
         }
       },
       {
         "index": 3,
         "event": "tool_result",
-        "name": "search_logs",
+        "name": "delegate_recovery_planning",
         "args": {
-          "service": "transcript-api",
-          "query": "pool"
+          "service": "transcript-api"
         },
-        "result": [
-          {
-            "id": "log-2",
-            "message": "Database pool exhausted: 64 concurrent workers"
-          }
-        ],
+        "result": {
+          "from": "orchestrator",
+          "to": "recovery_planner",
+          "handoffId": "handoff-recovery_planner",
+          "status": "complete",
+          "capabilities": [
+            "list_deployments",
+            "read_runbook"
+          ],
+          "findings": {
+            "rollback": {
+              "service": "transcript-api",
+              "expectedCurrent": "v12",
+              "targetVersion": "v11",
+              "runbookId": "rb-pool"
+            },
+            "reason": "v12 increased worker concurrency beyond the connection pool limit."
+          },
+          "steps": 3,
+          "toolCalls": 2,
+          "tokens": 0,
+          "trace": [
+            {
+              "index": 0,
+              "event": "tool_requested",
+              "name": "list_deployments",
+              "args": {
+                "service": "transcript-api"
+              }
+            },
+            {
+              "index": 1,
+              "event": "tool_result",
+              "name": "list_deployments",
+              "args": {
+                "service": "transcript-api"
+              },
+              "result": {
+                "current": "v12",
+                "previous": "v11"
+              },
+              "reviewer": null
+            },
+            {
+              "index": 2,
+              "event": "tool_requested",
+              "name": "read_runbook",
+              "args": {
+                "id": "rb-pool"
+              }
+            },
+            {
+              "index": 3,
+              "event": "tool_result",
+              "name": "read_runbook",
+              "args": {
+                "id": "rb-pool"
+              },
+              "result": {
+                "id": "rb-pool",
+                "title": "Connection pool exhaustion",
+                "action": "rollback",
+                "reason": "v12 increased worker concurrency beyond the connection pool limit."
+              },
+              "reviewer": null
+            },
+            {
+              "index": 4,
+              "event": "completed"
+            }
+          ]
+        },
         "reviewer": null
       },
       {
         "index": 4,
-        "event": "tool_requested",
-        "name": "list_deployments",
-        "args": {
-          "service": "transcript-api"
-        }
-      },
-      {
-        "index": 5,
-        "event": "tool_result",
-        "name": "list_deployments",
-        "args": {
-          "service": "transcript-api"
-        },
-        "result": {
-          "current": "v12",
-          "previous": "v11"
-        },
-        "reviewer": null
-      },
-      {
-        "index": 6,
-        "event": "tool_requested",
-        "name": "read_runbook",
-        "args": {
-          "id": "rb-pool"
-        }
-      },
-      {
-        "index": 7,
-        "event": "tool_result",
-        "name": "read_runbook",
-        "args": {
-          "id": "rb-pool"
-        },
-        "result": {
-          "id": "rb-pool",
-          "title": "Connection pool exhaustion",
-          "action": "rollback",
-          "reason": "v12 increased worker concurrency beyond the connection pool limit."
-        },
-        "reviewer": null
-      },
-      {
-        "index": 8,
         "event": "tool_requested",
         "name": "apply_rollback",
         "args": {
@@ -204,9 +451,9 @@
         }
       },
       {
-        "index": 9,
+        "index": 5,
         "event": "approval_required",
-        "id": "sample-relay-ops-agent:5:apply_rollback",
+        "id": "orchestrator-sample:3:apply_rollback",
         "tool": "apply_rollback",
         "args": {
           "service": "transcript-api",
@@ -216,7 +463,7 @@
         }
       },
       {
-        "index": 10,
+        "index": 6,
         "event": "tool_result",
         "name": "apply_rollback",
         "args": {
@@ -230,33 +477,77 @@
           "version": "v11",
           "simulated": true
         },
-        "reviewer": "sample-reviewer"
+        "reviewer": "reviewer"
       },
       {
-        "index": 11,
+        "index": 7,
         "event": "tool_requested",
-        "name": "get_metrics",
+        "name": "delegate_verification",
         "args": {
           "service": "transcript-api"
         }
       },
       {
-        "index": 12,
+        "index": 8,
         "event": "tool_result",
-        "name": "get_metrics",
+        "name": "delegate_verification",
         "args": {
           "service": "transcript-api"
         },
         "result": {
-          "service": "transcript-api",
-          "errorRate": 0.002,
-          "latencyMs": 180,
-          "healthy": true
+          "from": "orchestrator",
+          "to": "verifier",
+          "handoffId": "handoff-verifier",
+          "status": "complete",
+          "capabilities": [
+            "get_metrics"
+          ],
+          "findings": {
+            "metrics": {
+              "service": "transcript-api",
+              "errorRate": 0.002,
+              "latencyMs": 180,
+              "healthy": true
+            },
+            "healthy": true
+          },
+          "steps": 2,
+          "toolCalls": 1,
+          "tokens": 0,
+          "trace": [
+            {
+              "index": 0,
+              "event": "tool_requested",
+              "name": "get_metrics",
+              "args": {
+                "service": "transcript-api"
+              }
+            },
+            {
+              "index": 1,
+              "event": "tool_result",
+              "name": "get_metrics",
+              "args": {
+                "service": "transcript-api"
+              },
+              "result": {
+                "service": "transcript-api",
+                "errorRate": 0.002,
+                "latencyMs": 180,
+                "healthy": true
+              },
+              "reviewer": null
+            },
+            {
+              "index": 2,
+              "event": "completed"
+            }
+          ]
         },
         "reviewer": null
       },
       {
-        "index": 13,
+        "index": 9,
         "event": "completed"
       }
     ],
@@ -268,7 +559,7 @@
       }
     },
     "pending": null,
-    "answer": "Recovered transcript-api to v11. Verified error rate: 0.002. Synthetic rollback only."
+    "answer": "Orchestrated specialist handoffs and verified transcript-api healthy at v11. Synthetic effects only."
   },
   "result": {
     "version": "v11",
@@ -279,6 +570,212 @@
         "to": "v11",
         "reason": "v12 increased worker concurrency beyond the connection pool limit."
       }
-    ]
+    ],
+    "handoffs": {
+      "diagnosis": {
+        "from": "orchestrator",
+        "to": "diagnosis",
+        "handoffId": "handoff-diagnosis",
+        "status": "complete",
+        "capabilities": [
+          "get_metrics",
+          "search_logs"
+        ],
+        "findings": {
+          "metrics": {
+            "service": "transcript-api",
+            "errorRate": 0.19,
+            "latencyMs": 4200,
+            "healthy": false
+          },
+          "logs": [
+            {
+              "id": "log-2",
+              "message": "Database pool exhausted: 64 concurrent workers"
+            }
+          ],
+          "incidentType": "connection_pool"
+        },
+        "steps": 3,
+        "toolCalls": 2,
+        "tokens": 0,
+        "trace": [
+          {
+            "index": 0,
+            "event": "tool_requested",
+            "name": "get_metrics",
+            "args": {
+              "service": "transcript-api"
+            }
+          },
+          {
+            "index": 1,
+            "event": "tool_result",
+            "name": "get_metrics",
+            "args": {
+              "service": "transcript-api"
+            },
+            "result": {
+              "service": "transcript-api",
+              "errorRate": 0.19,
+              "latencyMs": 4200,
+              "healthy": false
+            },
+            "reviewer": null
+          },
+          {
+            "index": 2,
+            "event": "tool_requested",
+            "name": "search_logs",
+            "args": {
+              "service": "transcript-api",
+              "query": "pool"
+            }
+          },
+          {
+            "index": 3,
+            "event": "tool_result",
+            "name": "search_logs",
+            "args": {
+              "service": "transcript-api",
+              "query": "pool"
+            },
+            "result": [
+              {
+                "id": "log-2",
+                "message": "Database pool exhausted: 64 concurrent workers"
+              }
+            ],
+            "reviewer": null
+          },
+          {
+            "index": 4,
+            "event": "completed"
+          }
+        ]
+      },
+      "recovery_planner": {
+        "from": "orchestrator",
+        "to": "recovery_planner",
+        "handoffId": "handoff-recovery_planner",
+        "status": "complete",
+        "capabilities": [
+          "list_deployments",
+          "read_runbook"
+        ],
+        "findings": {
+          "rollback": {
+            "service": "transcript-api",
+            "expectedCurrent": "v12",
+            "targetVersion": "v11",
+            "runbookId": "rb-pool"
+          },
+          "reason": "v12 increased worker concurrency beyond the connection pool limit."
+        },
+        "steps": 3,
+        "toolCalls": 2,
+        "tokens": 0,
+        "trace": [
+          {
+            "index": 0,
+            "event": "tool_requested",
+            "name": "list_deployments",
+            "args": {
+              "service": "transcript-api"
+            }
+          },
+          {
+            "index": 1,
+            "event": "tool_result",
+            "name": "list_deployments",
+            "args": {
+              "service": "transcript-api"
+            },
+            "result": {
+              "current": "v12",
+              "previous": "v11"
+            },
+            "reviewer": null
+          },
+          {
+            "index": 2,
+            "event": "tool_requested",
+            "name": "read_runbook",
+            "args": {
+              "id": "rb-pool"
+            }
+          },
+          {
+            "index": 3,
+            "event": "tool_result",
+            "name": "read_runbook",
+            "args": {
+              "id": "rb-pool"
+            },
+            "result": {
+              "id": "rb-pool",
+              "title": "Connection pool exhaustion",
+              "action": "rollback",
+              "reason": "v12 increased worker concurrency beyond the connection pool limit."
+            },
+            "reviewer": null
+          },
+          {
+            "index": 4,
+            "event": "completed"
+          }
+        ]
+      },
+      "verifier": {
+        "from": "orchestrator",
+        "to": "verifier",
+        "handoffId": "handoff-verifier",
+        "status": "complete",
+        "capabilities": [
+          "get_metrics"
+        ],
+        "findings": {
+          "metrics": {
+            "service": "transcript-api",
+            "errorRate": 0.002,
+            "latencyMs": 180,
+            "healthy": true
+          },
+          "healthy": true
+        },
+        "steps": 2,
+        "toolCalls": 1,
+        "tokens": 0,
+        "trace": [
+          {
+            "index": 0,
+            "event": "tool_requested",
+            "name": "get_metrics",
+            "args": {
+              "service": "transcript-api"
+            }
+          },
+          {
+            "index": 1,
+            "event": "tool_result",
+            "name": "get_metrics",
+            "args": {
+              "service": "transcript-api"
+            },
+            "result": {
+              "service": "transcript-api",
+              "errorRate": 0.002,
+              "latencyMs": 180,
+              "healthy": true
+            },
+            "reviewer": null
+          },
+          {
+            "index": 2,
+            "event": "completed"
+          }
+        ]
+      }
+    }
   }
 }
