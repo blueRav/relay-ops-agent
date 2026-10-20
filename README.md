@@ -1,16 +1,21 @@
-# Relay Ops Agent
+# Relay Ops Orchestrator
 
 [![CI](https://github.com/blueRav/relay-ops-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/blueRav/relay-ops-agent/actions/workflows/ci.yml)
 
-Investigate an incident, propose a rollback, pause for approval, and verify recovery.
+An incident orchestrator that delegates diagnosis, recovery planning, and independent verification to separate specialist agents, with a human approval gate before a rollback.
 
-A runnable portfolio prototype by Antoine Morales. JavaScript ESM, Node.js 22+, no third-party runtime dependencies. All included data and effects are synthetic.
+A runnable portfolio prototype by Antoine Morales. Node.js 22+, JavaScript ESM, no third-party runtime dependencies. All logs, metrics, deployments, and effects are synthetic.
 
-## What it demonstrates
+## Agent roles
 
-**Planning, tool orchestration, approval checkpoints, state revalidation.**
+| Agent | Responsibilities | Permitted tools |
+| --- | --- | --- |
+| Orchestrator | Route work, coordinate handoffs, request approval, combine results | delegate_triage, delegate_recovery_planning, apply_rollback, delegate_verification |
+| Diagnosis specialist | Gather incident evidence | get_metrics, search_logs |
+| Recovery planning specialist | Build a runbook-backed rollback proposal | list_deployments, read_runbook |
+| Verification specialist | Independently verify current health | get_metrics |
 
-The default scenario is a synthetic transcript API incident: investigate a connection-pool failure, compare v12 with v11, consult a runbook, request rollback approval, and read metrics again. No AWS resource is accessed or modified.
+Every specialist has a separate bounded agent loop, role instructions, completion validator, and trace. Specialists cannot write service state. The coordinator accepts structured evidence handoffs rather than trusting a success claim.
 
 ## Run locally
 
@@ -20,66 +25,62 @@ cd relay-ops-agent
 npm ci --ignore-scripts
 npm test
 npm run demo
-# Review the pending rollback, then explicitly approve it:
+# Review the exact pending rollback, then approve the synthetic action:
 node src/cli.mjs --resume --approve --reviewer Antoine
 ```
 
-The default demo is deterministic and uses no API key. It writes the world and agent checkpoint to `.state/run.json`. Starting without `--resume` begins a new run; meeting sessions reuse memory when `--session` is supplied.
+The default scenario investigates a connection-pool incident in transcript-api. The diagnosis and planning agents run first; the coordinator pauses before changing v12 to v11. After approval, the verification specialist reads new metrics.
 
-## Optional live model
+State, receipts, all handoffs, and all agent traces are saved to .state/run.json. [Sample run](examples/sample-run.json) contains the actual deterministic trace.
 
-Copy `.env.example` to `.env`, then set your own `OPENAI_API_KEY` and `OPENAI_MODEL`. The model must support Responses API function tools. Run `npm run live`. This makes billable model calls; all domain tools still operate on the same synthetic data.
-
-Live runs can also pause for approval. Review the saved pending action, then use `node src/cli.mjs --resume --approve --reviewer YOUR_NAME`. The checkpoint remembers the live mode.
-
-Offline CI mocks the provider; it does not validate a live model's quality or availability.
-
-## Behavioral controls
-
-- The rollback accepts only the current service, expected deployed version, previous version, and known runbook.
-- The guard runs again after approval; a new deployment invalidates the pending change.
-- A write receipt prevents duplicate effects within the persisted run.
-- Completion requires an applied synthetic rollback and verified healthy state.
-
-## Architecture
+## Routing and approval
 
 ```mermaid
 flowchart TD
-  Goal["Goal and observations"] --> Planner["Planner"]
-  Planner --> Runtime["Validated runtime"]
-  Runtime -->|read| Tools["Domain tools"]
-  Runtime -->|reviewed write| Approval["Human approval"]
-  Approval --> Tools
-  Tools --> State["World and checkpoint"]
-  State --> Goal
+  Coordinator["Orchestrator"] -->|"1: diagnose"| Diagnosis["Diagnosis agent"]
+  Diagnosis -->|evidence| Coordinator
+  Coordinator -->|"2: plan"| Planner["Recovery planning agent"]
+  Planner -->|proposal| Coordinator
+  Coordinator -->|"3: request change"| Approval["Human approval gate"]
+  Approval -->|approved proposal| Rollback["Synthetic rollback"]
+  Rollback -->|"4: verify"| Verifier["Verification agent"]
+  Verifier -->|health evidence| Coordinator
 ```
 
-See [runtime design](docs/runtime.md) for the execution boundary and [development notes](docs/development.md) for the workflow. [Sample trace](examples/sample-run.json) shows the actual deterministic run, including tool results and terminal state.
+An already-healthy service skips recovery planning and rollback. Failed specialist evidence blocks completion. A changed deployment invalidates the pending proposal. Only the exact specialist proposal can reach execution, and duplicate approved writes reuse their receipt.
+
+See [orchestration design](docs/orchestration.md) for handoffs, role budgets, and routing.
+
+## Optional live coordinator
+
+Copy .env.example to .env, set your own OPENAI_API_KEY and OPENAI_MODEL, then run npm run live. The model must support Responses API function tools. This makes billable model calls.
+
+Live mode uses a model to coordinate the same delegation tools; specialists remain deterministic observation-driven agents. The offline demo and CI use no model API. No AWS resources are accessed or changed.
 
 ## Repository map
 
 | Path | Purpose |
 | --- | --- |
-| `src/project.mjs` | Domain tools, fixtures, and observation-driven planner |
-| `src/agent.mjs` | Bounded loop, schema validation, approval gates, receipts |
-| `src/provider.mjs` | Optional Responses API planner |
-| `src/cli.mjs` | Local demo and checkpoint persistence |
-| `test/` | Runtime, domain, and subprocess tests |
-| `examples/sample-run.json` | Reproducible offline result |
+| src/project.mjs | Coordinator tools, routing, domain guards, and fixture |
+| src/specialists.mjs | Three specialist agents, capability subsets, and evidence handoffs |
+| src/agent.mjs | Shared bounded runtime, schema validation, approvals, and receipts |
+| src/provider.mjs | Optional live coordinator adapter |
+| src/cli.mjs | Checkpoint persistence and approval resume |
+| test/ | Runtime, orchestration, and CLI subprocess checks |
+
+[Runtime design](docs/runtime.md) explains the enforcement boundary. [Development notes](docs/development.md) document the workflow and verification.
 
 ## Scope and limitations
 
-A cloud adapter is deliberately absent. A production version would need IAM scoping, real metric freshness checks, signed server-side checkpoints, durable idempotency, authenticated reviewers, and a rollback strategy tested against the actual service.
+This is a local orchestration prototype. Reviewer names are labels rather than authentication, and checkpoint files are trusted local inputs. Receipts are not exactly-once transactions across crashes. Token ceilings are checked after responses and are not strict spending caps. Specialist handoffs are cached for the synthetic scenario; real incident data would need freshness and invalidation rules.
 
-Local checkpoint files are trusted inputs. Reviewer names are labels, not authentication. The token ceiling is checked after a model response and is not a strict spend cap. See [runtime design](docs/runtime.md) before attaching external systems.
+A production AWS adapter, IAM policy, durable checkpoint service, authenticated review system, and real rollback validation are future work. Synthetic recovery metrics must not be presented as measured production results.
 
-## Related portfolio projects
+## Related projects
 
-- [Evidence Trail Agent](https://github.com/blueRav/evidence-trail-agent) — Retrieve sources, read evidence, and submit a brief with verifiable extractive citations.
-- [Minute Keeper Agent](https://github.com/blueRav/minute-keeper-agent) — Turn explicit meeting commitments into persistent, reviewable task memory.
-- [Dataset Scout Agent](https://github.com/blueRav/dataset-scout-agent) — Plan a small regression experiment while enforcing leakage and holdout boundaries.
-- [Agent Gauntlet](https://github.com/blueRav/agent-gauntlet) — Evaluate task completion and safety separately with synthetic adversarial cases and runtime probes.
+- [Evidence Trail Agent](https://github.com/blueRav/evidence-trail-agent) — retrieval and verified evidence.
+- [Minute Keeper Agent](https://github.com/blueRav/minute-keeper-agent) — persistent task memory.
+- [Dataset Scout Agent](https://github.com/blueRav/dataset-scout-agent) — constrained experimentation.
+- [Agent Gauntlet](https://github.com/blueRav/agent-gauntlet) — completion and safety evaluation.
 
-## License
-
-MIT. Developed with AI assistance; all behavior is open to inspection in the source and tests.
+MIT license. Developed with AI assistance; behavior and limitations are visible in the source and tests.
