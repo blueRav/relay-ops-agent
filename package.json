@@ -1,0 +1,17 @@
+{
+  "name": "relay-ops-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Investigate an incident, propose a rollback, pause for approval, and verify recovery.",
+  "author": "Antoine Morales",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "demo": "node src/cli.mjs",
+    "live": "node --env-file=.env src/cli.mjs --live"
+  }
+}
